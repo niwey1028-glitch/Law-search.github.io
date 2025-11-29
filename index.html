@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>法規查詢快速入口 (律師專業版)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 設定字體為 Inter，以獲得更好的現代感 */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8faff; /* 淺藍色背景 */
+        }
+        /* 定義 Tailwind 顏色以便使用 */
+        .law-blue {
+            background-color: #0b2d6a;
+        }
+        .law-blue-hover {
+            background-color: #0d3882;
+        }
+        /* 箭頭旋轉動畫 */
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
+        .rotate-180 {
+            transform: rotate(180deg);
+        }
+        .transition-transform {
+            transition: transform 0.2s ease-in-out;
+        }
+        /* 移除 D&D 相關的滑鼠樣式，使用普通 pointer */
+        .folder-header {
+            cursor: pointer; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 主容器卡片 -->
+    <div class="w-full max-w-xl bg-white rounded-xl shadow-2xl p-8 md:p-10 border-t-8 border-blue-600">
+        
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-extrabold text-gray-800 mb-2">
+                法規查詢快速入口
+            </h1>
+        </header>
+
+        <!-- 說明區塊 -->
+        <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-800 py-2 px-4 rounded-lg mb-6 text-sm leading-tight" role="alert">
+            <p>
+                重要提醒：本網站使用 **Firebase** 儲存您的查詢紀錄。<br>
+                結果依然透過 **Google Site Search** 鎖定 <a href="https://law.moj.gov.tw/" target="_blank" class="underline hover:text-blue-600">法務部官方網站</a>。
+            </p>
+        </div>
+
+        <!-- 搜尋表單 -->
+        <form id="lawSearchForm" onsubmit="searchLaw(event)" class="space-y-4">
+            
+            <!-- 案件分類與名稱輸入欄位 (分組) -->
+            <div class="flex space-x-4">
+                <div class="w-1/3">
+                    <label for="caseCategoryInput" class="block text-sm font-medium text-gray-700 mb-1">案件分類</label>
+                    <select id="caseCategoryInput" class="w-full pl-3 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-base shadow-sm transition duration-150">
+                        <!-- Options will be populated by JS -->
+                    </select>
+                </div>
+                <!-- 案件名稱輸入欄位 -->
+                <div class="w-2/3">
+                    <label for="caseInput" class="block text-sm font-medium text-gray-700 mb-1">案件名稱 (選填)</label>
+                    <input 
+                        type="text" 
+                        id="caseInput" 
+                        placeholder="例如：張家遺產案、A公司契約糾紛..." 
+                        class="w-full pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-base shadow-sm transition duration-150"
+                    >
+                </div>
+            </div>
+
+            <!-- 法規關鍵字輸入欄位 (原有的) -->
+            <label for="searchInput" class="sr-only">輸入法規關鍵字</label>
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <!-- Search Icon (Lucide-react equivalent) -->
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="例如：民法、勞動基準法、土地稅法..." 
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-base shadow-sm transition duration-150"
+                    required
+                >
+            </div>
+            
+            <button 
+                type="submit" 
+                class="w-full law-blue text-white font-semibold py-3 rounded-lg law-blue-hover transition duration-200 ease-in-out shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300 transform hover:scale-105"
+            >
+                查詢法規 
+            </button>
+        </form>
+
+        <!-- 查詢結果顯示區塊 (已移除，現為直接跳轉) -->
+
+
+        <!-- 法規快捷鍵區塊 -->
+        <div class="mt-6">
+            <!-- NEW: Flex container to align heading and toggle button -->
+            <div class="flex items-center justify-between mb-3 border-b border-gray-200 pb-2">
+                <h3 class="text-base font-semibold text-gray-700">法規快捷鍵</h3>
+                <!-- Toggle Button moved here, simplified text -->
+                <button type="button" onclick="window.toggleAddShortcut()" id="toggleAddShortcutButton" class="text-sm font-medium text-indigo-500 hover:text-indigo-600 transition duration-150 flex items-center p-1 rounded-md">
+                    <!-- Smaller Plus Icon -->
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    自訂
+                </button>
+            </div>
+
+            <div id="quickLinksContainer" class="flex flex-wrap gap-2">
+                <!-- Buttons will be rendered here by JavaScript -->
+            </div>
+
+            <!-- 自訂快捷鍵輸入區塊 (現在是可收合的, moved outside of the flex header) -->
+            <div id="addShortcutContainer" class="mt-4 pt-3 border-t border-gray-100 flex space-x-2 hidden">
+                <input 
+                    type="text" 
+                    id="newShortcutInput" 
+                    placeholder="輸入新的法規快捷鍵" 
+                    class="flex-grow pl-4 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm shadow-sm transition duration-150"
+                >
+                <button 
+                    type="button" 
+                    onclick="window.addCustomShortcut()" 
+                    class="bg-indigo-500 text-white text-sm font-medium py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-150 shadow-md flex items-center"
+                    title="新增自訂快捷鍵"
+                >
+                    新增
+                </button>
+            </div>
+        </div>
+
+        <!-- 常用查詢紀錄區塊 (新功能) -->
+        <div class="mt-8">
+            <h3 class="text-base font-semibold text-gray-700 mb-3 border-b border-gray-200 pb-2">
+                常用查詢紀錄 (依案件名稱分組) <span id="loadingIndicator" class="text-sm text-blue-500 ml-2 hidden">載入中...</span>
+            </h3>
+            <!-- 歷史紀錄容器 -->
+            <div id="historyContainer" class="space-y-3 max-h-64 overflow-y-auto p-1 rounded-lg">
+                <p class="text-gray-400 italic text-sm">正在等待身份驗證與紀錄載入...</p>
+            </div>
+        </div>
+        
+        <!-- 已封存案件區塊 (改為不顯眼的收合介面) -->
+        <div id="archivedContainerWrapper" class="mt-8 hidden">
+            <button id="archivedToggleButton" type="button" class="w-full flex justify-between items-center text-sm font-medium text-gray-500 hover:text-gray-700 transition duration-150 p-2 rounded-lg bg-gray-100 hover:bg-gray-200" aria-expanded="false" aria-controls="archivedContainer">
+                <div class="flex items-center">
+                    <!-- Icon to show/hide (down arrow when collapsed) -->
+                    <svg id="archiveArrow" class="w-4 h-4 mr-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <span>已封存案件</span>
+                </div>
+                <span id="archivedCount" class="text-xs font-normal text-gray-500"></span>
+            </button>
+            <div id="archivedContainer" class="space-y-3 max-h-40 overflow-y-auto p-1 rounded-lg mt-2 hidden">
+                <!-- Archived folders will be rendered here -->
+            </div>
+        </div>
+
+        <footer class="mt-8 text-center text-sm text-gray-400">
+            &copy; 2025 法規查詢工具。資料來源：中華民國法務部。
+        </footer>
+
+    </div>
+
+    <!-- JavaScript 處理搜尋、Firebase 邏輯 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, deleteDoc, onSnapshot, collection, query, getDocs, getDoc, setDoc, updateDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-lite.js";
+
+        // Firebase Global Variables
+        let db, auth;
+        let userId = null;
+        let isAuthReady = false;
+        let caseOrder = []; // 儲存案件名稱的自訂排序
+        let customShortcuts = []; // 儲存自訂快捷鍵
+        let deletedBuiltInShortcuts = []; // NEW: 儲存被使用者隱藏的內建快捷鍵 (持久化)
+        
+        // Firestore Path Components
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // UI Components
+        const searchInput = document.getElementById('searchInput');
+        const caseInput = document.getElementById('caseInput');
+        const caseCategoryInput = document.getElementById('caseCategoryInput');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const historyContainer = document.getElementById('historyContainer');
+        const archivedContainer = document.getElementById('archivedContainer');
+        const archivedContainerWrapper = document.getElementById('archivedContainerWrapper');
+        const archivedCount = document.getElementById('archivedCount');
+        const archivedToggleButton = document.getElementById('archivedToggleButton');
+        const quickLinksContainer = document.getElementById('quickLinksContainer');
+        const newShortcutInput = document.getElementById('newShortcutInput');
+        // const searchResultDisplay = document.getElementById('searchResultDisplay'); // 已移除
+
+        
+        // NEW: Shortcut input components
+        const addShortcutContainer = document.getElementById('addShortcutContainer');
+        const toggleAddShortcutButton = document.getElementById('toggleAddShortcutButton');
+
+
+        // 案件分類選項
+        const caseCategories = [
+            { value: 'uncategorized', label: '未分類 (預設)' },
+            { value: 'civil', label: '民事案件' },
+            { value: 'criminal', label: '刑事案件' },
+            { value: 'admin', label: '行政訴訟' },
+            { value: 'ip', label: '智慧財產' },
+            { value: 'labor', label: '勞資糾紛' },
+            { value: 'other', label: '其他' }
+        ];
+        
+        // 內建快捷鍵 (Built-in links)
+        const builtInQuickLinks = ['民法', '刑法', '憲法', '勞動基準法', '著作權法', '公司法', '行政程序法', '個人資料保護法'];
+
+
+        // --- Firebase Initialization and Authentication ---
+        function getUserSettingsRef() {
+             if (!db || !userId) return null;
+             return doc(db, `artifacts/${appId}/users/${userId}/user_settings`, 'case_management');
+        }
+
+        async function loadUserSettings() {
+            const settingsRef = getUserSettingsRef();
+            if (!settingsRef) return;
+            try {
+                const docSnap = await getDoc(settingsRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    caseOrder = data.caseOrder || [];
+                    customShortcuts = data.customShortcuts || [];
+                    deletedBuiltInShortcuts = data.deletedBuiltInShortcuts || []; // 載入被隱藏的列表
+                }
+            } catch (e) {
+                console.error("Error loading user settings:", e);
+                caseOrder = [];
+                customShortcuts = [];
+                deletedBuiltInShortcuts = [];
+            }
+        }
+        
+        async function updateUserSettings(updates = {}) {
+            const settingsRef = getUserSettingsRef();
+            if (!settingsRef) return;
+            try {
+                // 將 current state 納入更新
+                const payload = {
+                    caseOrder: caseOrder,
+                    customShortcuts: customShortcuts,
+                    deletedBuiltInShortcuts: deletedBuiltInShortcuts, // 儲存被隱藏的列表
+                    ...updates
+                };
+                await setDoc(settingsRef, payload, { merge: true });
+            } catch (e) {
+                console.error("Error updating user settings:", e);
+            }
+        }
+        
+        // 將舊的 updateCaseOrder 替換為專門的 updateUserSettings helper
+        async function updateCaseOrder(newOrder) {
+            caseOrder = newOrder;
+            await updateUserSettings({ caseOrder: newOrder });
+        }
+
+
+        function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
+                
+                loadingIndicator.classList.remove('hidden');
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        isAuthReady = true;
+                        console.log("Firebase Auth Ready. User ID:", userId);
+                        await loadUserSettings();
+                        renderQuickLinks(); // 載入後渲染快捷鍵
+                        setupHistoryListener();
+                    } else {
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Firebase Sign-in failed:", error);
+                            userId = crypto.randomUUID(); 
+                            isAuthReady = true;
+                            await loadUserSettings();
+                            renderQuickLinks(); // 載入後渲染快捷鍵
+                            setupHistoryListener(); 
+                        }
+                    }
+                    loadingIndicator.classList.add('hidden');
+                });
+            } catch (e) {
+                console.error("Firebase Initialization Error:", e);
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+        
+        // --- Firestore History Functions ---
+
+        function getHistoryCollectionRef() {
+            if (!db || !userId) return null;
+            const path = `artifacts/${appId}/users/${userId}/search_history`;
+            return collection(db, path);
+        }
+
+        async function saveQuery(query, caseName, caseCategory) {
+            if (!isAuthReady) {
+                console.log("Auth not ready, skipping saveQuery.");
+                return;
+            }
+            const historyRef = getHistoryCollectionRef();
+            if (!historyRef) return;
+            
+            try {
+                await addDoc(historyRef, {
+                    query: query,
+                    caseName: caseName,
+                    caseCategory: caseCategory,
+                    status: 'active', // Default status for new queries
+                    timestamp: Date.now()
+                });
+                console.log(`Query saved to Firestore: ${query}, Case: ${caseName}, Category: ${caseCategory}`);
+
+                // 新增查詢時，將案件名稱頂置
+                if (!caseOrder.includes(caseName)) {
+                    const newOrder = [caseName, ...caseOrder.filter(name => name !== caseName)];
+                    await updateCaseOrder(newOrder);
+                }
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        }
+        
+        function setupHistoryListener() {
+            if (!isAuthReady || !userId) return;
+
+            const historyRef = getHistoryCollectionRef();
+            if (!historyRef) return;
+
+            // Fetch all queries (active and archived)
+            onSnapshot(historyRef, (snapshot) => {
+                let history = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    history.push({
+                        id: doc.id,
+                        query: data.query,
+                        caseName: data.caseName,
+                        caseCategory: data.caseCategory || 'uncategorized',
+                        status: data.status || 'active',
+                        timestamp: data.timestamp
+                    });
+                });
+
+                // 1. Client-side sort by timestamp (most recent overall)
+                history.sort((a, b) => b.timestamp - a.timestamp);
+                
+                renderHistory(history);
+
+            }, (error) => {
+                console.error("Error listening to history: ", error);
+                if (error.code === 'permission-denied') {
+                    historyContainer.innerHTML = '<p class="text-red-500 italic text-sm">權限不足：無法讀取您的查詢紀錄。</p>';
+                } else {
+                    historyContainer.innerHTML = '<p class="text-red-500 italic text-sm">載入查詢紀錄時發生錯誤。</p>';
+                }
+            });
+        }
+
+        function getCategoryColor(categoryValue) {
+            switch (categoryValue) {
+                case 'civil': return 'bg-green-500';
+                case 'criminal': return 'bg-red-500';
+                case 'admin': return 'bg-yellow-500';
+                case 'ip': return 'bg-purple-500';
+                case 'labor': return 'bg-indigo-500';
+                case 'other': return 'bg-gray-500';
+                case 'uncategorized':
+                default: return 'bg-blue-400';
+            }
+        }
+
+        // 核心功能：構造 Google Site Search URL (Attached to window)
+        window.constructGoogleSearchUrl = function(query) {
+            const fullQuery = query + ' site:law.moj.gov.tw';
+            const encodedQuery = encodeURIComponent(fullQuery);
+            return `https://www.google.com/search?q=${encodedQuery}`;
+        }
+
+        // 核心功能：直接在新分頁執行 Google Site Search (Attached to window)
+        window.executeGoogleSearch = function(query) {
+            const searchUrl = window.constructGoogleSearchUrl(query);
+            window.open(searchUrl, '_blank');
+        }
+
+        // 歷史紀錄點擊處理函式：填充並直接執行查詢 (Attached to window)
+        window.fillAndExecuteHistory = function(item, caseNameKey) {
+            // 1. 填充表單欄位
+            caseCategoryInput.value = item.caseCategory;
+            caseInput.value = caseNameKey === '未命名案件' ? '' : caseNameKey; 
+            searchInput.value = item.query;
+
+            // 2. 直接執行查詢
+            window.executeGoogleSearch(item.query);
+        };
+        
+        // --- Folder Management Functions ---
+
+        /**
+         * Archives or unarchives all documents belonging to a case.
+         * @param {string} caseName 
+         * @param {string} newStatus 'active' or 'archived'
+         */
+        window.toggleCaseStatus = async function(caseName, newStatus) {
+            if (!isAuthReady) return;
+            const historyRef = getHistoryCollectionRef();
+            if (!historyRef) return;
+            
+            // 1. 執行查詢：找出所有屬於該案件名稱的文檔 (僅依 caseName 過濾，避免複合索引)
+            const q = query(historyRef, where("caseName", "==", caseName));
+            try {
+                const snapshot = await getDocs(q);
+                
+                let documentsToUpdate = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // 2. Client-side 過濾：只更新狀態與目標狀態不同的文件
+                    if ((data.status || 'active') !== newStatus) {
+                        documentsToUpdate.push(doc.ref);
+                    }
+                });
+
+
+                if (documentsToUpdate.length === 0) {
+                    console.log(`案件 "${caseName}" 已是 ${newStatus === 'active' ? '活動' : '封存'} 狀態。`);
+                    return;
+                }
+
+                // 3. 批次更新狀態
+                documentsToUpdate.forEach(docRef => {
+                    updateDoc(docRef, { status: newStatus });
+                });
+                
+                // 4. 更新 caseOrder 列表 (維持原邏輯)
+                if (newStatus === 'archived') {
+                    const newOrder = caseOrder.filter(name => name !== caseName);
+                    await updateCaseOrder(newOrder);
+                } else {
+                    const newOrder = [caseName, ...caseOrder.filter(name => name !== caseName)];
+                    await updateCaseOrder(newOrder);
+                }
+
+            } catch (e) {
+                console.error(`Error toggling status for case ${caseName}:`, e);
+            }
+        }
+
+        /**
+         * Deletes all documents belonging to a case. (Changed to Sequential Deletion)
+         * @param {string} caseName 
+         */
+        window.deleteCaseFolder = async function(caseName) {
+            if (!isAuthReady) {
+                console.error(`Cannot delete case: Auth not ready for caseName: ${caseName}`);
+                return;
+            }
+            // 使用 confirm() 雖然不建議，但在無自定義 modal 時用於確認永久刪除是必要的。
+            if (!confirm(`確定要永久刪除案件 "${caseName}" 及其所有 ${caseName === '未命名案件' ? '未分類' : ''} 查詢紀錄嗎？此操作無法復原。`)) {
+                return;
+            }
+            
+            console.log(`Attempting to delete case folder: ${caseName}`); 
+
+            const historyRef = getHistoryCollectionRef();
+            if (!historyRef) return;
+
+            // 1. 執行查詢：找出所有屬於該案件名稱的文檔 (不論狀態)
+            const q = query(historyRef, where("caseName", "==", caseName));
+            try {
+                const snapshot = await getDocs(q);
+                
+                console.log(`Found ${snapshot.size} documents to delete for case: ${caseName}`); 
+
+                let deletedCount = 0;
+                // 2. 順序刪除：迭代並順序刪除每個文件，以避免 Promise.all 可能的超時或資源限制
+                for (const doc of snapshot.docs) {
+                    await deleteDoc(doc.ref);
+                    deletedCount++;
+                }
+                
+                console.log(`Successfully deleted ${deletedCount} documents.`); 
+
+                // 3. 從 caseOrder 中移除
+                const newOrder = caseOrder.filter(name => name !== caseName);
+                await updateCaseOrder(newOrder);
+                
+                console.log(`Successfully updated case order after deleting ${caseName}.`); 
+
+            } catch (e) {
+                // 確保錯誤被完整記錄
+                console.error(`CRITICAL ERROR deleting case folder ${caseName}:`, e);
+            }
+        }
+        
+        // --- Render Logic (Updated to preserve state) ---
+        function renderHistory(history) {
+            
+            // 1. Capture current expanded state before clearing
+            const expandedFolders = {};
+            // 查找所有處於展開狀態的資料夾按鈕
+            document.querySelectorAll('.case-folder-wrapper button[aria-expanded="true"]').forEach(btn => {
+                const caseName = btn.closest('.case-folder-wrapper').getAttribute('data-case-name');
+                if (caseName) {
+                    expandedFolders[caseName] = true;
+                }
+            });
+            
+            // 2. Group history items by caseName (Active vs. Archived)
+            const groupedHistory = history.reduce((acc, item) => {
+                const caseKey = item.caseName && item.caseName.trim() !== '' ? item.caseName : '未命名案件';
+                const statusKey = item.status === 'archived' ? 'archived' : 'active';
+                
+                if (!acc[statusKey]) acc[statusKey] = {};
+
+                if (!acc[statusKey][caseKey]) {
+                    acc[statusKey][caseKey] = {
+                        items: [],
+                        category: item.caseCategory || 'uncategorized', 
+                    };
+                }
+                acc[statusKey][caseKey].items.push(item);
+                return acc;
+            }, { active: {}, archived: {} });
+            
+            // 3. Sort Active Cases based on caseOrder from Firestore
+            const activeCaseNames = Object.keys(groupedHistory.active);
+            const sortedActiveCases = activeCaseNames.sort((a, b) => {
+                const aIndex = caseOrder.indexOf(a);
+                const bIndex = caseOrder.indexOf(b);
+
+                // If both are in caseOrder, sort by index (Top: recently created/unarchived)
+                if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+                // If only one is in caseOrder, put it first (this covers cases not yet in the caseOrder array)
+                if (aIndex !== -1) return -1;
+                if (bIndex !== -1) return 1;
+                // If neither are in caseOrder, use the default sort (alphabetic for stability)
+                return a.localeCompare(b);
+            });
+
+
+            historyContainer.innerHTML = ''; 
+            archivedContainer.innerHTML = '';
+            
+            // 4. Render Active Cases
+            if (sortedActiveCases.length === 0 && Object.keys(groupedHistory.archived).length === 0) {
+                 historyContainer.innerHTML = '<p class="text-gray-400 italic text-sm">尚無查詢紀錄</p>';
+            }
+
+            let folderIndex = 0;
+            sortedActiveCases.forEach((caseName) => {
+                const group = groupedHistory.active[caseName];
+                if (!group) return; // Safety check
+
+                // PASS expandedFolders TO preserve state
+                const folderElement = createCaseFolder(caseName, group, folderIndex++, 'active', expandedFolders); 
+                historyContainer.appendChild(folderElement);
+            });
+            
+            // 5. Render Archived Cases (使用新的 UI 邏輯)
+            const archivedCaseNames = Object.keys(groupedHistory.archived);
+            if (archivedCaseNames.length > 0) {
+                archivedContainerWrapper.classList.remove('hidden');
+                archivedCount.textContent = `(${archivedCaseNames.length} 案件)`;
+                
+                // 確保容器在載入時是收合的 (如果它之前沒有被展開過)
+                const isExpanded = archivedToggleButton.getAttribute('aria-expanded') === 'true';
+                if (!isExpanded) {
+                    archivedContainer.classList.add('hidden');
+                    document.getElementById('archiveArrow').classList.remove('rotate-180');
+                } else {
+                    archivedContainer.classList.remove('hidden');
+                    document.getElementById('archiveArrow').classList.add('rotate-180');
+                }
+
+
+                archivedCaseNames.forEach((caseName) => {
+                    const group = groupedHistory.archived[caseName];
+                    // PASS expandedFolders TO preserve state
+                    const folderElement = createCaseFolder(caseName, group, folderIndex++, 'archived', expandedFolders);
+                    archivedContainer.appendChild(folderElement);
+                });
+            } else {
+                 archivedContainerWrapper.classList.add('hidden');
+            }
+        }
+        
+        // --- createCaseFolder function updated to accept and use expandedFolders ---
+        function createCaseFolder(caseName, group, index, status, expandedFolders) {
+            const folderId = `case-folder-${index}`;
+            const category = group.category;
+            const categoryLabel = caseCategories.find(c => c.value === category)?.label || '未知分類';
+            const categoryColor = getCategoryColor(category);
+            
+            // 檢查該資料夾是否應該是展開的
+            const isInitiallyExpanded = expandedFolders && expandedFolders[caseName] === true;
+
+            // Wrapper for D&D to work correctly
+            const folderWrapper = document.createElement('div');
+            folderWrapper.className = `case-folder-wrapper space-y-1 ${status === 'archived' ? 'archived' : ''}`;
+            folderWrapper.setAttribute('data-case-name', caseName); // <-- 案件名稱資料放在 Wrapper 上
+
+            // --- Folder Header (Clickable) ---
+            const folderHeader = document.createElement('button');
+            folderHeader.type = 'button';
+            // 移除 draggable 相關 class
+            folderHeader.className = `folder-header w-full flex items-center justify-between p-3 rounded-lg ${categoryColor} text-white font-semibold shadow-md hover:opacity-90 transition duration-150`;
+            folderHeader.setAttribute('aria-expanded', isInitiallyExpanded ? 'true' : 'false'); // 根據狀態初始化
+            folderHeader.setAttribute('aria-controls', folderId);
+            
+            folderHeader.innerHTML = `
+                <div class="flex items-center truncate flex-grow">
+                    <!-- Arrow Icon -->
+                    <svg class="arrow w-4 h-4 mr-2 transition-transform flex-shrink-0 ${isInitiallyExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    
+                    <!-- Case Info -->
+                    <span class="text-sm font-bold truncate">${categoryLabel.split(' ')[0]} / ${caseName}</span>
+                    <!-- Item Count -->
+                    <span class="text-xs font-medium bg-white bg-opacity-30 rounded-full px-2 py-0.5 ml-2 flex-shrink-0">${group.items.length} 筆</span>
+                </div>
+                <!-- Action Buttons (Only Archive/Unarchive remains) -->
+                <div class="flex space-x-2 ml-4 flex-shrink-0">
+                    <button type="button" title="${status === 'active' ? '封存案件' : '解除封存'}" onclick="event.stopPropagation(); window.toggleCaseStatus('${caseName}', '${status === 'active' ? 'archived' : 'active'}')" class="p-1 rounded-full hover:bg-white hover:bg-opacity-20 transition duration-150">
+                        <!-- Archive/Unarchive Icon -->
+                        ${status === 'active' ? 
+                            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 9h6"></path></svg>' : // Archive
+                            '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2h2"></path></svg>' // Unarchive
+                        }
+                    </button>
+                    <!-- Folder Delete Button Removed -->
+                </div>
+            `;
+            
+            // --- Folder Content (Collapsible List) ---
+            const folderContent = document.createElement('div');
+            folderContent.id = folderId;
+            // The max-h-0 and transition-all are for the smooth collapsing animation
+            folderContent.className = 'overflow-hidden transition-all duration-300 max-h-0 space-y-1 mt-1 pl-4 border-l-2 border-gray-200';
+            
+            // Set initial style immediately if expanded (using arbitrary large height)
+            if (isInitiallyExpanded) {
+                folderContent.style.maxHeight = '500px'; 
+            }
+
+            
+            // Toggle Logic
+            folderHeader.onclick = (e) => {
+                e.preventDefault();
+                const isExpanded = folderHeader.getAttribute('aria-expanded') === 'true';
+                folderHeader.setAttribute('aria-expanded', !isExpanded);
+                const arrow = folderHeader.querySelector('.arrow');
+                
+                if (isExpanded) {
+                    // Collapse
+                    arrow.classList.remove('rotate-90');
+                    folderContent.style.maxHeight = '0';
+                } else {
+                    // Expand
+                    arrow.classList.add('rotate-90');
+                    // Calculate content height dynamically for smooth transition
+                    folderContent.style.maxHeight = folderContent.scrollHeight + 'px';
+                    // Re-calculate after a small delay in case content changes
+                    setTimeout(() => folderContent.style.maxHeight = folderContent.scrollHeight + 'px', 100);
+                }
+            };
+            
+            // 3. Render individual history items inside folderContent
+            group.items.forEach(item => {
+                const historyItem = document.createElement('div');
+                historyItem.className = 'flex items-center justify-between bg-white p-2 rounded-lg hover:bg-gray-100 transition duration-150 border border-gray-200 shadow-sm';
+
+                // Query Button (Clickable text)
+                const queryButton = document.createElement('button');
+                queryButton.textContent = item.query;
+                queryButton.title = `查詢：${item.query}`;
+                queryButton.type = 'button';
+                queryButton.className = 'text-sm text-gray-700 font-medium truncate flex-grow text-left pr-2 focus:outline-none';
+                queryButton.onclick = () => {
+                    // 點擊紀錄時，執行填充並立即查詢的動作
+                    window.fillAndExecuteHistory(item, caseName);
+                };
+
+                // Delete Button
+                const deleteButton = document.createElement('button');
+                deleteButton.title = '刪除此紀錄';
+                deleteButton.type = 'button';
+                // 使用 SVG 垃圾桶圖示
+                deleteButton.innerHTML = `<svg class="w-4 h-4 text-red-400 hover:text-red-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
+                deleteButton.className = 'ml-2 flex-shrink-0 p-1 rounded-full hover:bg-red-100'; 
+                // 呼叫 deleteQuery 函式，傳入 Firestore 文件 ID
+                deleteButton.onclick = (e) => {
+                    e.stopPropagation();
+                    window.deleteQuery(item.id); // CHANGED to window.deleteQuery
+                };
+
+                historyItem.appendChild(queryButton);
+                historyItem.appendChild(deleteButton);
+                folderContent.appendChild(historyItem);
+            });
+
+            folderWrapper.appendChild(folderHeader);
+            folderWrapper.appendChild(folderContent);
+            return folderWrapper;
+        }
+
+
+        // 將 deleteQuery 附加到 window (Previously only function)
+        window.deleteQuery = async function(docId) {
+            if (!isAuthReady) return;
+            try {
+                // 構造正確的 Firestore 文件參考路徑
+                const docRef = doc(db, `artifacts/${appId}/users/${userId}/search_history/${docId}`);
+                await deleteDoc(docRef);
+                console.log(`Document successfully deleted: ${docId}`);
+                // onSnapshot 會自動觸發 renderHistory 函式，更新 UI
+            } catch (e) {
+                console.error("Error removing document: ", e);
+            }
+        }
+
+
+        // --- Core Search Logic ---
+        
+
+        window.searchLaw = function(event) {
+            event.preventDefault();
+
+            let query = searchInput.value.trim();
+            // 獲取案件名稱，如果為空則設為 '未命名案件'
+            let caseName = caseInput.value.trim() || '未命名案件'; 
+            // 獲取案件分類
+            let caseCategory = caseCategoryInput.value || 'uncategorized'; 
+            
+            if (query) {
+                // 1. 儲存查詢到 Firestore (傳入 caseName 和 caseCategory) - 只有表單提交時才儲存
+                saveQuery(query, caseName, caseCategory);
+
+                // 2. 直接執行查詢 (在新分頁中打開)
+                window.executeGoogleSearch(query);
+                
+            } else {
+                console.log('請輸入有效的法規關鍵字。');
+            }
+        }
+        
+        // --- Custom Shortcut Functions ---
+        
+        // NEW: Toggle visibility of the custom shortcut input
+        window.toggleAddShortcut = function() {
+            const container = document.getElementById('addShortcutContainer');
+            const button = document.getElementById('toggleAddShortcutButton');
+            
+            // Icon element inside the button
+            const icon = button.querySelector('svg');
+
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                // Rotate the plus icon 45 degrees to become an 'X'
+                icon.classList.add('rotate-45');
+                button.classList.add('font-bold'); // Make it bold when open
+            } else {
+                container.classList.add('hidden');
+                // Rotate the icon back
+                icon.classList.remove('rotate-45');
+                button.classList.remove('font-bold');
+            }
+        }
+
+
+        // Explicitly attach to window
+        window.addCustomShortcut = async function() {
+            const newQuery = newShortcutInput.value.trim();
+            if (newQuery === '') {
+                console.log('請輸入有效的法規名稱作為快捷鍵。');
+                return;
+            }
+            // 檢查是否已存在於內建或自訂清單
+            if (builtInQuickLinks.includes(newQuery) && !deletedBuiltInShortcuts.includes(newQuery)) {
+                console.log('該法規已是內建快捷鍵。');
+                return;
+            }
+            if (customShortcuts.includes(newQuery)) {
+                console.log('該自訂快捷鍵已存在。');
+                return;
+            }
+
+            // 如果該名稱曾在內建清單中被刪除，則將其從 deletedBuiltInShortcuts 移除，並加入 customShortcuts
+            if (deletedBuiltInShortcuts.includes(newQuery)) {
+                deletedBuiltInShortcuts = deletedBuiltInShortcuts.filter(q => q !== newQuery);
+            }
+
+            customShortcuts = [...customShortcuts, newQuery];
+            await updateUserSettings(); // Update will handle all three shortcut arrays
+            
+            newShortcutInput.value = '';
+            renderQuickLinks();
+            
+            // NEW: Close the input container after successful addition
+            window.toggleAddShortcut();
+        }
+
+        /**
+         * 處理內建與自訂快捷鍵的刪除/隱藏邏輯
+         * @param {string} queryToDelete 要刪除的關鍵字
+         * @param {boolean} isBuiltIn 是否為內建快捷鍵
+         */
+        window.deleteShortcut = async function(queryToDelete, isBuiltIn) {
+            if (isBuiltIn) {
+                // 內建快捷鍵：加入到 deletedBuiltInShortcuts 列表，並保存
+                deletedBuiltInShortcuts = [...deletedBuiltInShortcuts, queryToDelete];
+                await updateUserSettings(); // Update will save the new deletedBuiltInShortcuts list
+                // 移除成功提示： alertMessage(`已隱藏內建快捷鍵：${queryToDelete}。`, 'success');
+
+            } else {
+                // 自訂快捷鍵：從 customShortcuts 中移除
+                customShortcuts = customShortcuts.filter(q => q !== queryToDelete);
+                await updateUserSettings(); // Update will save the new customShortcuts list
+                // 移除成功提示： alertMessage(`已刪除自訂快捷鍵：${queryToDelete}`, 'success');
+            }
+            renderQuickLinks();
+        }
+
+        // --- UI Rendering Functions ---
+        function renderQuickLinks() {
+            quickLinksContainer.innerHTML = '';
+            
+            // 1. 渲染內建快捷鍵 (Built-in) - 過濾掉已被隱藏的
+            builtInQuickLinks
+                .filter(link => !deletedBuiltInShortcuts.includes(link))
+                .forEach(link => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center bg-blue-100 text-blue-700 rounded-full border border-blue-300 shadow-sm whitespace-nowrap';
+
+                // Link Button
+                const linkButton = document.createElement('button');
+                linkButton.textContent = link;
+                linkButton.type = 'button';
+                linkButton.className = 'px-3 py-1 text-sm transition duration-150 hover:bg-blue-200 rounded-l-full';
+                
+                linkButton.onclick = (e) => {
+                    e.preventDefault();
+                    searchInput.value = link;
+                    searchInput.focus();
+                };
+                
+                // Delete Button (for built-in)
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.title = `隱藏內建快捷鍵：${link} (持久)`;
+                deleteButton.className = 'p-1 h-full rounded-r-full text-blue-500 hover:bg-blue-300 transition duration-150 flex items-center justify-center';
+                deleteButton.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                deleteButton.onclick = (e) => {
+                    e.preventDefault();
+                    // Pass true for isBuiltIn
+                    window.deleteShortcut(link, true); 
+                };
+
+                wrapper.appendChild(linkButton);
+                wrapper.appendChild(deleteButton);
+                quickLinksContainer.appendChild(wrapper);
+            });
+            
+            // 2. 渲染自訂快捷鍵 (Custom)
+            customShortcuts.forEach(link => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center bg-indigo-100 text-indigo-700 rounded-full border border-indigo-300 shadow-sm whitespace-nowrap';
+                
+                // Link Button
+                const linkButton = document.createElement('button');
+                linkButton.textContent = link;
+                linkButton.type = 'button';
+                linkButton.className = 'px-3 py-1 text-sm transition duration-150 hover:bg-indigo-200 rounded-l-full';
+                linkButton.onclick = (e) => {
+                    e.preventDefault();
+                    searchInput.value = link;
+                    searchInput.focus();
+                };
+                
+                // Delete Button
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.title = `刪除自訂快捷鍵：${link}`;
+                deleteButton.className = 'p-1 h-full rounded-r-full text-indigo-500 hover:bg-indigo-300 transition duration-150 flex items-center justify-center';
+                deleteButton.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
+                deleteButton.onclick = (e) => {
+                    e.preventDefault();
+                    // Pass false for isBuiltIn
+                    window.deleteShortcut(link, false);
+                };
+
+                wrapper.appendChild(linkButton);
+                wrapper.appendChild(deleteButton);
+                quickLinksContainer.appendChild(wrapper);
+            });
+        }
+
+
+        function renderCaseCategories() {
+            caseCategories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.value;
+                option.textContent = cat.label;
+                caseCategoryInput.appendChild(option);
+            });
+        }
+
+        // Note: alertMessage is intentionally removed to avoid environment conflicts
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCaseCategories(); // 渲染案件分類選項
+            searchInput.focus();
+            // 在 auth 準備好之前，先渲染空的內建快捷鍵
+            renderQuickLinks();
+            initFirebase(); 
+            
+            // NEW: Archived Toggle Handler
+            if (archivedToggleButton) {
+                archivedToggleButton.onclick = () => {
+                    const isExpanded = archivedToggleButton.getAttribute('aria-expanded') === 'true';
+                    const arrow = document.getElementById('archiveArrow');
+
+                    if (isExpanded) {
+                        archivedContainer.classList.add('hidden');
+                        arrow.classList.remove('rotate-180');
+                        archivedToggleButton.setAttribute('aria-expanded', 'false');
+                    } else {
+                        archivedContainer.classList.remove('hidden');
+                        arrow.classList.add('rotate-180');
+                        archivedToggleButton.setAttribute('aria-expanded', 'true');
+                    }
+                };
+            }
+        });
+
+    </script>
+</body>
+</html>
